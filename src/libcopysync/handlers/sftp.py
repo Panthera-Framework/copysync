@@ -54,6 +54,10 @@ class Handler:
         if os.path.isfile(local):
             self.connection.put(local, remoteAbs, preserve_mtime=True)
         else:
-            self.connection.makedirs(remoteAbs)
+            
+            try:
+                self.connection.makedirs(remoteAbs)
+            except OSError as e:
+                self.app.logging.output('mkdir failed on '+remote+', details: '+str(e))
         
         return True
