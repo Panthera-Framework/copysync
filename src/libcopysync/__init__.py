@@ -44,6 +44,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     watcher = None
     localDirectory = None
     hashTable = {}
+    ignoreHiddenFiles = False
     
     
     
@@ -109,6 +110,9 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 # iterate over queue to send elements
                 for item in self.queue.keys():
                     virtualPath = self.toVirtualPath(item)
+                    
+                    if self.ignoreHiddenFiles and "/." in virtualPath:
+                        continue
                     
                     self.hooking.execute('app.syncJob.Queue.iterate.item', {
                         'file': item,

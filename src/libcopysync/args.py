@@ -27,6 +27,13 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
         print(self.panthera.appName + " 0.1")
         sys.exit(0)
         
+    def setSkipHiddenFiles(self, v=''):
+        """
+            Switch that disables synchronization for hidden files and directories
+        """
+        
+        self.panthera.ignoreHiddenFiles = True
+        
     def setDebuggingMode(self, aaa=''):
         """
             Enable debugging mode
@@ -46,3 +53,4 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
     
         self.createArgument('--password', self.setPassword, '', '(Optional) Set password', required=False, action='store_false')
         self.createArgument('--debug', self.setDebuggingMode, '', 'Enable debugging mode', required=False, action='store_false')
+        self.createArgument('--skip_hidden_files', self.setSkipHiddenFiles, '', 'Exclude hidden files or directories from synchronization', required=False, action='store_false')
