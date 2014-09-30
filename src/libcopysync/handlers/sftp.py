@@ -52,7 +52,10 @@ class Handler:
         remoteAbs = os.path.abspath(self.path+remote)
         
         if os.path.isfile(local):
-            self.connection.put(local, remoteAbs, preserve_mtime=True)
+            try:
+                self.connection.put(local, remoteAbs, preserve_mtime=True)
+            except Exception as e:
+                self.app.logging.output('sftp copy failed on '+remote+', details: '+str(e))
         else:
             
             try:
