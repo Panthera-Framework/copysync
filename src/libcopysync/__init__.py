@@ -7,6 +7,8 @@ import libcopysync.handlers.files
 import libcopysync.args
 import sys
 import time
+import os
+import hashlib
 
 try:
     import urlparse
@@ -41,6 +43,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     defaultWatcher = "fswatchdog"
     watcher = None
     localDirectory = None
+    hashTable = {}
     
     
     
@@ -72,6 +75,27 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         self.logging.output('Whooho, done', 'copysync')
         
         
+    def getFileHash(self, path, blockSize=2**20):
+        """ Get file hash, supports big files """
+        
+        md5 = hashlib.md5()
+        
+        if not os.path.isfile(path):
+            return ""
+        
+        f = open(path, "r")
+        
+        while True:
+            data = f.read(blockSize)
+            
+            if not data:
+                break
+            
+            md5.update(data)
+        
+        
+        return md5.digest()
+        
         
     def syncJob(self, thread):
         """ This job is taking care of queued files to copy to remote server """
@@ -86,24 +110,60 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 for item in self.queue.keys():
                     virtualPath = self.toVirtualPath(item)
                     
-                    self.hooking.execute('app.syncJob.Queue.iterate.item', {'file': item, 'virtualPath': virtualPath, 'state': 'starting', 'queueLength': len(self.queue), 'result': False, 'retries': 0})
-                    
+                    self.hooking.execute('app.syncJob.Queue.iterate.item', {
+                        'file': item,
+                        'virtualPath': virtualPath,
+                        'state': 'starting',
+                        'queueLength': len(self.queue),
+                        'result': False,
+                        'retries': 0
+                    })
                     result = False
                     fileRetries = 0
                     
-                    try:
-                        result = self.destination.sendObject(item, virtualPath)
-                    except Exception:
-                        pass
+                    # check hash table
+                    if os.path.isfile(item):
+                        hash = self.getFileHash(item)
+                        
+                        # skip file if it was not changed during last upload time
+                        if item in self.hashTable and self.hashTable[item] == hash:
+                            continue
+                        
+                        self.hashTable[item] = hash
                     
-                    while not result:
-                        result = self.destination.sendObject(item, virtualPath)
-                        fileRetries = fileRetries + 1
+                    
+                    # if file or directory exists
+                    if os.path.isfile(item) or os.path.isdir(item):
+                        operationType = "add"
                         
-                        if fileRetries > 5:
-                            break
+                        try:
+                            result = self.destination.sendObject(item, virtualPath)
+                        except Exception:
+                            pass
                         
-                    print(item)
+                        while not result:
+                            result = self.destination.sendObject(item, virtualPath)
+                            fileRetries = fileRetries + 1
+                            
+                            if fileRetries > 5:
+                                break
+                    else:
+                        operationType = "remove"
+                        
+                        # if file or directory does not exists anymore
+                        try:
+                            result = self.destination.removeObject(item, virtualPath)
+                        except Exception:
+                            pass
+                        
+                        while not result:
+                            result = self.destination.removeObject(item, virtualPath)
+                            fileRetries = fileRetries + 1
+                            
+                            if fileRetries > 5:
+                                break
+                        
+                    print(operationType+" "+item)
                         
                     # remove item from queue afery copy operation
                     self.removeFromQueue(item)
@@ -113,11 +173,10 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                         'state': 'finished', 
                         'queueLength': len(self.queue), 
                         'result': result, 
-                        'retries': fileRetries
+                        'retries': fileRetries,
+                        'operationType': operationType
                     })
                     
-            
-            # @queue check
             
             
     

@@ -46,6 +46,9 @@ class Handler:
             
         self.connection = pysftp.Connection(self.hostname, username=self.username, password=self.password, port=self.port)
         
+        if not "remove" in dir(self.connection):
+            self.connection.remove = self.connection._sftp.remove
+        
     def sendObject(self, local, remote):
         """ Copy a file or directory """
         
@@ -64,3 +67,9 @@ class Handler:
                 self.app.logging.output('mkdir failed on '+remote+', details: '+str(e))
         
         return True
+    
+    def removeObject(self, local, remote):
+        """ Remove a file or directoy from remote destination """
+        
+        remoteAbs = os.path.abspath(self.path+remote)
+        
