@@ -58,13 +58,13 @@ class Handler:
             try:
                 self.connection.put(local, remoteAbs, preserve_mtime=True)
             except Exception as e:
-                self.app.logging.output('sftp copy failed on '+remote+', details: '+str(e))
+                self.app.logging.output('sftp copy failed on '+remote+', details: '+str(e), 'sftp')
         else:
             
             try:
                 self.connection.makedirs(remoteAbs)
             except OSError as e:
-                self.app.logging.output('mkdir failed on '+remote+', details: '+str(e))
+                self.app.logging.output('mkdir failed on '+remote+', details: '+str(e), 'sftp')
         
         return True
     
@@ -72,4 +72,8 @@ class Handler:
         """ Remove a file or directoy from remote destination """
         
         remoteAbs = os.path.abspath(self.path+remote)
-        
+
+        try:
+            self.connection.remove(remote)
+        except Exception as e:
+            self.app.logging.output('Cannot delete remove file "'+remote+'", details: '+str(e), 'sftp')
