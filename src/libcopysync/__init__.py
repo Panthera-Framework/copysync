@@ -77,7 +77,9 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         
         
     def getFileHash(self, path, blockSize=2**20):
-        """ Get file hash, supports big files """
+        """ Get file hash, supports big files 
+        :rtype : str
+        """
         
         md5 = hashlib.md5()
         
@@ -122,6 +124,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                         'result': False,
                         'retries': 0
                     })
+                    
                     result = False
                     fileRetries = 0
                     
