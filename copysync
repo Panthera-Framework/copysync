@@ -15,8 +15,5 @@ t = sys.argv[0].replace(os.path.basename(sys.argv[0]), "") + "src/"
 if os.path.isdir(t):
     sys.path.append(t)
     
-if platform.system() == 'Windows':
-    print("Windows is not supported by copysync")
-    
 import libcopysync
 libcopysync.runInstance(True)

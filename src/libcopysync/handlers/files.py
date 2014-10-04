@@ -77,6 +77,11 @@ class Handler:
         remoteAbs = os.path.abspath(self.path+remote)
 
         try:
-            self.connection.remove(remote)
+            if os.path.isfile(remoteAbs):
+                os.remove(remoteAbs)
+            elif os.path.isdir(remoteAbs):
+                os.rmdir(remoteAbs)
         except Exception as e:
             self.app.logging.output('Cannot delete remove file "'+remote+'", details: '+str(e), 'sftp')
+
+        return True

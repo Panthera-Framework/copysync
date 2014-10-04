@@ -112,9 +112,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 # iterate over queue to send elements
                 for item in self.queue.keys():
                     virtualPath = self.toVirtualPath(item)
-                    
-                    if self.ignoreHiddenFiles and "/." in virtualPath:
-                        continue
+
+                    #print("STARTING: "+item)
                     
                     self.hooking.execute('app.syncJob.Queue.iterate.item', {
                         'file': item,
@@ -134,6 +133,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                         
                         # skip file if it was not changed during last upload time
                         if item in self.hashTable and self.hashTable[item] == hash:
+                            self.removeFromQueue(item)
+                            #print("REMOVED BY HASH "+str(item))
                             continue
                         
                         self.hashTable[item] = hash
@@ -155,6 +156,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                             if fileRetries > 5:
                                 break
                     else:
+                        #print("REMOVE "+str(item))
                         operationType = "remove"
                         
                         # if file or directory does not exists anymore
@@ -227,7 +229,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 return retries
             except Exception:
                 retries = retries + 1
-                time.sleep(100)
+                time.sleep(self.config.getKey('queueRetryTime', 100))
                 
                 
         
@@ -238,6 +240,9 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         """
         
         retries = 0
+
+        if self.ignoreHiddenFiles and "/." in self.toVirtualPath(path):
+            return 0
         
         while True:
             if path in self.queue:
@@ -248,9 +253,9 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 self.logging.output('Added '+path+' to queue after '+str(retries)+' write retries', 'copysync')
                 return retries
             except Exception:
-                time.sleep(100)
                 retries = retries + 1
-                
+                time.sleep(self.config.getKey('queueRetryTime', 100))
+
                 
     
     def mainLoop(self, a=''):

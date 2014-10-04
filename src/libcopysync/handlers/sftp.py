@@ -1,5 +1,7 @@
 import pysftp
 import os
+import socket
+import time
 
 class Handler:
     connection = None
@@ -14,6 +16,7 @@ class Handler:
         """ Constructor """
         
         self.app = app
+        self.port = app.config.getKey('defaultSSHPort', 22)
     
     def connect(self, url, data):
         """
@@ -43,21 +46,66 @@ class Handler:
             
         # destination path
         self.path = data.path
-            
+        self.reconnect()
+
+
+
+    def reconnect(self):
+        """
+        Make a reconnection using same connection parameters as previous
+        :return: None
+        """
+
         self.connection = pysftp.Connection(self.hostname, username=self.username, password=self.password, port=self.port)
-        
-        if not "remove" in dir(self.connection):
-            self.connection.remove = self.connection._sftp.remove
-        
+        self.connection.timeout = self.app.config.getKey('connectionTimeout', 5)
+
+    def __reconnectionProxy(self, method, *args):
+        """
+        A proxy method that is reconnecting to server when connection gets broken
+        :param local:
+        :param remote:
+        :return:
+        """
+
+        obj = eval('self.'+method)
+
+        try:
+            code = obj(*args)
+        except socket.error as e:
+            time.sleep(1)
+            self.app.logging.output('Reconnecting to remote host', 'sftp')
+
+            try:
+                self.reconnect()
+            except Exception as e:
+                pass
+
+            return obj(*args)
+        except Exception as e:
+            self.app.logging.output('Got unexpected exception '+str(e), 'sftp')
+            return True
+
+        return code
+
+
     def sendObject(self, local, remote):
+        """
+        :param local: Local path
+        :param remote: Remote path
+        :return: int exit code
+        """
+
+        return self.__reconnectionProxy('_sendObject', local, remote)
+
+    def _sendObject(self, local, remote):
         """ Copy a file or directory """
-        
+
         remoteAbs = os.path.abspath(self.path+remote)
         
         if os.path.isfile(local):
             try:
                 self.connection.put(local, remoteAbs, preserve_mtime=True)
-            except Exception as e:
+            except OSError as e:
                 self.app.logging.output('sftp copy failed on '+remote+', details: '+str(e), 'sftp')
         else:
             
@@ -67,13 +115,34 @@ class Handler:
                 self.app.logging.output('mkdir failed on '+remote+', details: '+str(e), 'sftp')
         
         return True
-    
+
+
     def removeObject(self, local, remote):
+        """ Remove a file or directoy from remote destination """
+
+        """
+        :param local: Local path
+        :param remote: Remote path
+        :return: int exit code
+        """
+
+        return self.__reconnectionProxy('_removeObject', local, remote)
+    
+    def _removeObject(self, local, remote):
         """ Remove a file or directoy from remote destination """
         
         remoteAbs = os.path.abspath(self.path+remote)
 
         try:
-            self.connection.remove(remote)
+            if os.path.isfile(local):
+                self.connection.remove(remoteAbs)
+            else:
+                self.connection.rmdir(remoteAbs)
+
+            self.app.logging.output('rm '+remoteAbs, 'sftp')
         except Exception as e:
-            self.app.logging.output('Cannot delete remove file "'+remote+'", details: '+str(e), 'sftp')
+            #self.app.logging.output('Cannot remove file "'+remoteAbs+'", details: '+str(e), 'sftp')
+            self.app.logging.output('shell/rm '+remoteAbs, 'sftp')
+            self.connection.execute('rm '+remoteAbs)
+
+        return True
