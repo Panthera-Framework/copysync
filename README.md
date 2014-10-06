@@ -3,7 +3,7 @@ copysync
 
 Copysync is monitoring directories for changes and copying files from local to remote destination on every file change
 
-**Please note for programmers using GIT/SVN:** If you switch branch on your source (eg. localhost) computer it will copy all branch files to destination. If you don't want to switch branch on remote destination eg. testing www server please kill copysync first
+**Programmers using GIT/SVN please note:** If you switch branch on your source (eg. localhost) computer it will copy all branch files to destination. If you don't want to switch branch on remote destination eg. testing www server please kill copysync first
 
 ## Installing
 
