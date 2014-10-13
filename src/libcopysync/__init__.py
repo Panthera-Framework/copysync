@@ -276,6 +276,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         """ Application's main function """
         
         self.maxFileSize = tools.human2bytes(self.config.getKey('maxFileSize', '5M'))
+        self.logging.output('Max file size limit set to '+str(self.config.getKey('maxFileSize', '5M'))+' ('+str(self.maxFileSize)+' bytes)', 'copysync')
         
         self.checkDestination()
         self.threads['syncthread'] = pantheradesktop.kernel.createThread(self.syncJob)
