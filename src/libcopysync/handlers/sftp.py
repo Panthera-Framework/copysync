@@ -146,3 +146,13 @@ class Handler:
             self.connection.execute('rm '+remoteAbs)
 
         return True
+    
+    def shellExecute(self, command):
+        """
+            Execute a shell command
+            
+            :param command: command string
+            :return: result list of every executed command
+        """
+        
+        return self.connection.execute(command)

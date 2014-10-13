@@ -45,9 +45,11 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     watcher = None
     localDirectory = None
     hashTable = {}
+    
+    # built-in options
     ignoreHiddenFiles = False
     maxFileSize = 5242880 # 5 Mbytes
-    
+    queueShellCallback = None
     
     
     def checkDestination(self):
@@ -74,6 +76,10 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         except Exception as e:
             print("Cannot connect to server: "+str(e))
             sys.exit(1)
+            
+        if self.queueShellCallback:
+            if not callable(getattr(self.destination, "shellExecute", None)):
+                self.logging.output('Shell command will not be executed as the connection handler does not support commands execution', 'copysync')
             
         self.logging.output('Whooho, done', 'copysync')
         
@@ -188,6 +194,21 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                         'operationType': operationType
                     })
                     
+                self.hooking.execute('app.syncJob.Queue.iterated', self.queue)
+                
+                # execute a shell command after queue is sent
+                if self.queueShellCallback:
+                    if callable(getattr(self.destination, "shellExecute", None)):
+                        commandResult = ""
+                        
+                        try:
+                            commandResult = str(self.destination.shellExecute(self.queueShellCallback))
+                            self.logging.output(self.queueShellCallback+' ~ '+commandResult, 'syncjob')
+                        except Exception:
+                            self.logging.output('Cannot execute shell command "'+self.queueShellCallback, 'syncjob')
+
+                        self.hooking.execute('app.syncJob.Queue.shell.executed', commandResult)
+                
             
             
     
@@ -242,7 +263,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         """
         
         retries = 0
-
+        
+        # skipping hidden files
         if self.ignoreHiddenFiles and "/." in self.toVirtualPath(path):
             self.hooking.execute('app.syncJob.Queue.append', {
                 'status': 'skipped',
@@ -257,6 +279,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 'reason': 'file_size_too_big'
             })
             return 0
+        
+        
         
         while True:
             if path in self.queue:

@@ -41,6 +41,13 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
         
         self.panthera.logging.silent = False
         
+    def setQueuePostCommand(self, queuePostCommand):
+        """
+            Set command that will be sent to server after finished queued files sending
+        """
+        
+        self.panthera.queueShellCallback = queuePostCommand
+        
     def setPassword(self, passwd):
         """ Set remote destination password """
         
@@ -51,6 +58,7 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
     def addArgs(self):
         """ Add application command-line arguments """
     
+        self.createArgument('--execute', self.setQueuePostCommand, '', '(Optional) Execute shell command when every queue of files will be sent', required=False, action='store')
         self.createArgument('--password', self.setPassword, '', '(Optional) Set password', required=False, action='store_false')
         self.createArgument('--debug', self.setDebuggingMode, '', 'Enable debugging mode', required=False, action='store_false')
-        self.createArgument('--skip_hidden_files', self.setSkipHiddenFiles, '', 'Exclude hidden files or directories from synchronization', required=False, action='store_false')
+        self.createArgument('--skip_hidden_files', self.setSkipHiddenFiles, '', '(Optional) Exclude hidden files or directories from synchronization', required=False, action='store_false')
