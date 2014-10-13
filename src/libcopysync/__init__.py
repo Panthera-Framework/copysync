@@ -9,6 +9,7 @@ import sys
 import time
 import os
 import hashlib
+import pantheradesktop.tools as tools
 
 try:
     import urlparse
@@ -45,6 +46,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     localDirectory = None
     hashTable = {}
     ignoreHiddenFiles = False
+    maxFileSize = 5242880 # 5 Mbytes
     
     
     
@@ -242,6 +244,18 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         retries = 0
 
         if self.ignoreHiddenFiles and "/." in self.toVirtualPath(path):
+            self.hooking.execute('app.syncJob.Queue.append', {
+                'status': 'skipped',
+                'reason': 'hidden_files_are_ignored'
+            })
+            return 0
+        
+        # filesize limit
+        if os.path.isfile(path) and self.maxFileSize > 0 and os.path.getsize(path) > self.maxFileSize:
+            self.hooking.execute('app.syncJob.Queue.append', {
+                'status': 'skipped',
+                'reason': 'file_size_too_big'
+            })
             return 0
         
         while True:
@@ -260,6 +274,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     
     def mainLoop(self, a=''):
         """ Application's main function """
+        
+        self.maxFileSize = tools.human2bytes(self.config.getKey('maxFileSize', '5M'))
         
         self.checkDestination()
         self.threads['syncthread'] = pantheradesktop.kernel.createThread(self.syncJob)
