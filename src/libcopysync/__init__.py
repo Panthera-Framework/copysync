@@ -10,6 +10,7 @@ import time
 import os
 import hashlib
 import pantheradesktop.tools as tools
+import re
 
 try:
     import urlparse
@@ -82,7 +83,43 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 self.logging.output('Shell command will not be executed as the connection handler does not support commands execution', 'copysync')
             
         self.logging.output('Whooho, done', 'copysync')
-        
+
+    def readFiltersFromFile(self, path):
+        """
+        Read queue filters from a file
+
+        Example file format:
+        tmp = skip
+        /\/tmp\/(.*).test/i = execute:echo "test" > ~/.aaa
+
+        :param path: Path to file
+        :return:
+        """
+
+        if os.path.isfile(path) and os.access(path, os.R_OK):
+            file = open(path, "r")
+
+            # queueFilters
+            i = 0
+
+            for line in file.readlines():
+                separator = line.find(' = ')
+
+                if separator === -1:
+                    continue
+
+                regexp = line[0:separator].trim()
+                action = line[separator:].trim()
+
+                self.queueFilters[regexp] = action
+                i = i + 1
+
+            return i
+
+        return 0
+
+
+
         
     def getFileHash(self, path, blockSize=2**20):
         """ Get file hash, supports big files 
@@ -91,18 +128,21 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         
         md5 = hashlib.md5()
         
-        if not os.path.isfile(path):
+        if not os.path.isfile(path) or not os.access(path, os.R_OK):
             return ""
-        
-        f = open(path, "r")
-        
-        while True:
-            data = f.read(blockSize)
-            
-            if not data:
-                break
-            
-            md5.update(data)
+
+        try:
+            f = open(path, "r")
+
+            while True:
+                data = f.read(blockSize)
+
+                if not data:
+                    break
+
+                md5.update(data)
+        except Exception:
+            return ""
         
         
         return md5.digest()
@@ -263,9 +303,40 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         """
         
         retries = 0
-        
+        forceContinue = False
+        skipByPlugin = False
+
+        # python-like filters from plugins
+        skipByPlugin, forceContinue, path = self.hooking.execute('app.syncJob.Queue.append.before', [skipByPlugin, forceContinue, path])
+
+        if skipByPlugin:
+            return 0
+
+        #self.queueFilters = {
+        #    '([A-Za-z0-9]+)': 'skip'
+        #}
+
+        if self.queueFilters:
+            for regex in self.queueFilters:
+                regexResult = re.findall(regex, path)
+                action = self.queueFilters[regex]
+
+                if not regexResult:
+                    continue
+
+                action = action.replace('$1', regexResult[0])
+                action = action.split(':')
+
+                if len(action) < 1:
+                    continue
+
+                if action[0] == 'skip':
+                    return 0
+
+
+
         # skipping hidden files
-        if self.ignoreHiddenFiles and "/." in self.toVirtualPath(path):
+        if self.ignoreHiddenFiles and "/." in self.toVirtualPath(path) and not forceContinue:
             self.hooking.execute('app.syncJob.Queue.append', {
                 'status': 'skipped',
                 'reason': 'hidden_files_are_ignored'
@@ -273,14 +344,12 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
             return 0
         
         # filesize limit
-        if os.path.isfile(path) and self.maxFileSize > 0 and os.path.getsize(path) > self.maxFileSize:
+        if os.path.isfile(path) and self.maxFileSize > 0 and os.path.getsize(path) > self.maxFileSize and not forceContinue:
             self.hooking.execute('app.syncJob.Queue.append', {
                 'status': 'skipped',
                 'reason': 'file_size_too_big'
             })
             return 0
-        
-        
         
         while True:
             if path in self.queue:
@@ -290,6 +359,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 self.queue[path] = True
                 self.logging.output('Added '+path+' to queue after '+str(retries)+' write retries', 'copysync')
                 return retries
+
             except Exception:
                 retries = retries + 1
                 time.sleep(self.config.getKey('queueRetryTime', 100))

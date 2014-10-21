@@ -53,8 +53,18 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
         
         self.panthera.password = getpass.getpass()
         
-        self.panthera.logging.output('Rawwr... got your password '+str(len(self.panthera.password))+'-length password!', 'copysync')
-    
+        self.panthera.logging.output('Rawwr... got your password '+str(len(self.panthera.password))+'-length password!', 'copysync.args')
+
+    def readFilters(self, file):
+        try:
+            i = self.panthera.readFiltersFromFile(file)
+
+            if i > 0:
+                self.panthera.logging.output('Imported '+str(i)+' filters', 'copysync.args')
+
+        except Exception as e:
+            self.panthera.logging.output('Cannot import filters: '+str(e), 'copysync.args')
+
     def addArgs(self):
         """ Add application command-line arguments """
     
