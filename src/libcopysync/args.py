@@ -40,6 +40,7 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
         """
         
         self.panthera.logging.silent = False
+        self.panthera.logging.flushAndEnablePrinting()
         
     def setQueuePostCommand(self, queuePostCommand):
         """
@@ -61,6 +62,8 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
 
             if i > 0:
                 self.panthera.logging.output('Imported '+str(i)+' filters', 'copysync.args')
+            else:
+                self.panthera.logging.output('No any filter imported from '+str(file), 'copysync.args')
 
         except Exception as e:
             self.panthera.logging.output('Cannot import filters: '+str(e), 'copysync.args')
@@ -72,3 +75,4 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
         self.createArgument('--password', self.setPassword, '', '(Optional) Set password', required=False, action='store_false')
         self.createArgument('--debug', self.setDebuggingMode, '', 'Enable debugging mode', required=False, action='store_false')
         self.createArgument('--skip_hidden_files', self.setSkipHiddenFiles, '', '(Optional) Exclude hidden files or directories from synchronization', required=False, action='store_false')
+        self.createArgument('--filters', self.readFilters, '', '(Optional) Read regex filters from file', required=False, action='store')

@@ -51,6 +51,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     ignoreHiddenFiles = False
     maxFileSize = 5242880 # 5 Mbytes
     queueShellCallback = None
+    queueFilters = {}
     
     
     def checkDestination(self):
@@ -84,6 +85,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
             
         self.logging.output('Whooho, done', 'copysync')
 
+
+
     def readFiltersFromFile(self, path):
         """
         Read queue filters from a file
@@ -105,11 +108,11 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
             for line in file.readlines():
                 separator = line.find(' = ')
 
-                if separator === -1:
+                if separator == -1:
                     continue
 
-                regexp = line[0:separator].trim()
-                action = line[separator:].trim()
+                regexp = line[0:separator].strip()
+                action = line[separator:].strip()
 
                 self.queueFilters[regexp] = action
                 i = i + 1
@@ -146,8 +149,9 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         
         
         return md5.digest()
-        
-        
+
+
+    # noinspection PyAugmentAssignment
     def syncJob(self, thread):
         """ This job is taking care of queued files to copy to remote server """
         
@@ -312,23 +316,36 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         if skipByPlugin:
             return 0
 
-        #self.queueFilters = {
-        #    '([A-Za-z0-9]+)': 'skip'
-        #}
-
         if self.queueFilters:
             for regex in self.queueFilters:
-                regexResult = re.findall(regex, path)
-                action = self.queueFilters[regex]
+                isRegex = False
 
-                if not regexResult:
+                # exact path match
+                if regex[0:2] == '==' and path == regex[2:]:
+                    result = True
+                # exact filename (basename with extension) match
+                elif regex[0:1] == '=' and os.path.basename(path) == regex[1:]:
+                    result = True
+                # regex match
+                else:
+                    isRegex = True
+                    result = re.findall(regex, path)
+
+                if not result:
                     continue
 
-                action = action.replace('$1', regexResult[0])
+
+                action = self.queueFilters[regex]
+
+                if isRegex:
+                    action = action.replace('$1', result[0])
+
                 action = action.split(':')
 
                 if len(action) < 1:
                     continue
+
+                action[0] = action[0].replace('= ', '')
 
                 if action[0] == 'skip':
                     return 0
