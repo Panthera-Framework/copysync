@@ -330,13 +330,16 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         if self.queueFilters:
             for regex in self.queueFilters:
                 isRegex = False
+                argumentToReplace = False
 
                 # exact path match
                 if regex[0:2] == '==' and path == regex[2:]:
                     result = True
+                    argumentToReplace = regex[2:]
                 # exact filename (basename with extension) match
                 elif regex[0:1] == '=' and os.path.basename(path) == regex[1:]:
                     result = True
+                    argumentToReplace = regex[1:]
                 # regex match
                 else:
                     isRegex = True
@@ -349,8 +352,14 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 action = self.queueFilters[regex]
 
                 if isRegex:
-                    action = action.replace('$1', result[0])
+                    for i in range(0, len(result)):
+                        action = action.replace('$'+str(i+1), result[i])
 
+                if argumentToReplace:
+                    action = action.replace('$0', str(argumentToReplace))
+
+                action = action.replace('$file', os.path.basename(path))
+                action = action.replace('$path', path)
                 action = action.split(':')
 
                 if len(action) < 1:
