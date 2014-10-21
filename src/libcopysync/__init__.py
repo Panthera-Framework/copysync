@@ -165,8 +165,6 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 for item in self.queue.keys():
                     virtualPath = self.toVirtualPath(item)
 
-                    #print("STARTING: "+item)
-                    
                     self.hooking.execute('app.syncJob.Queue.iterate.item', {
                         'file': item,
                         'virtualPath': virtualPath,
@@ -202,7 +200,11 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                             pass
                         
                         while not result:
-                            result = self.destination.sendObject(item, virtualPath)
+                            try:
+                                result = self.destination.sendObject(item, virtualPath)
+                            except Exception:
+                                pass
+
                             fileRetries = fileRetries + 1
                             
                             if fileRetries > 5:
@@ -225,6 +227,14 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                                 break
                         
                     print(operationType+" "+item)
+
+                    # execute actions hooked up by structural filters
+                    if isinstance(self.queue[item], list):
+                        if self.queue[item][0] == 'execute':
+                            try:
+                                self.logging.output(self.queue[item][1]+ ' ~ '+str(self.destination.shellExecute(self.queue[item][1])), 'copysync')
+                            except Exception as e:
+                                self.logging.output('Cannot execute post-process command '+str(self.queue[item])+' for file '+item, 'copysync')
                         
                     # remove item from queue afery copy operation
                     self.removeFromQueue(item)
@@ -309,6 +319,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         retries = 0
         forceContinue = False
         skipByPlugin = False
+        queueHookForFile = True
 
         # python-like filters from plugins
         skipByPlugin, forceContinue, path = self.hooking.execute('app.syncJob.Queue.append.before', [skipByPlugin, forceContinue, path])
@@ -350,6 +361,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 if action[0] == 'skip':
                     return 0
 
+                queueHookForFile = action
+
 
 
         # skipping hidden files
@@ -373,7 +386,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 return 0
             
             try:
-                self.queue[path] = True
+                self.queue[path] = queueHookForFile
                 self.logging.output('Added '+path+' to queue after '+str(retries)+' write retries', 'copysync')
                 return retries
 
