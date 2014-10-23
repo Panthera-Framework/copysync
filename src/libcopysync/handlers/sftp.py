@@ -2,6 +2,7 @@ import pysftp
 import os
 import socket
 import time
+import traceback
 
 class Handler:
     connection = None
@@ -83,6 +84,7 @@ class Handler:
             return obj(*args)
         except Exception as e:
             self.app.logging.output('Got unexpected exception '+str(e), 'sftp')
+            traceback.print_stack()
             return True
 
         return code
