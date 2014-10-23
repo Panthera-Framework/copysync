@@ -230,12 +230,12 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
 
                     # execute actions hooked up by structural filters
                     if isinstance(self.queue[item], list):
-                        if self.queue[item][0] == 'execute':
-                            try:
-                                self.logging.output(self.queue[item][1]+ ' ~ '+str(self.destination.shellExecute(self.queue[item][1])), 'copysync')
-                            except Exception as e:
-                                self.logging.output('Cannot execute post-process command '+str(self.queue[item])+' for file '+item, 'copysync')
-                        
+
+                        try:
+                            self.executeItemAction(item)
+                        except Exception as e:
+                            self.logging.output('Cannot execute post-process action '+str(self.queue[item])+' for file '+item, 'copysync')
+
                     # remove item from queue afery copy operation
                     self.removeFromQueue(item)
                     self.hooking.execute('app.syncJob.Queue.iterate.item', {
@@ -264,7 +264,18 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                         self.hooking.execute('app.syncJob.Queue.shell.executed', commandResult)
                 
             
-            
+    def executeItemAction(self, item):
+        """
+        Execute action when item gets processed in queue
+        :param item: path
+        :return: null
+        """
+
+        if self.queue[item][0] == 'execute':
+            self.logging.output(self.queue[item][1]+ ' ~ '+str(self.destination.shellExecute(self.queue[item][1])), 'copysync')
+        elif self.queue[item][0] == 'local.execute':
+            self.logging.output(self.queue[item][1]+ ' $~ '+str(subprocess.getoutput(self.queue[item][1])), 'copysync')
+
     
     def toVirtualPath(self, path):
         """ Convert local or destination path to virtual path """
