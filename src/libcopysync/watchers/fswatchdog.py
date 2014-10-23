@@ -28,13 +28,8 @@ class Watcher(FileSystemEventHandler):
         observer.join()
     
     
-    def on_modified(self, event):
+    def on_any_event(self, event):
         """ On modified event """
 
         # get instance of application
-        self.copysync.appendToQueue(event.src_path)
-
-    def on_deleted(self, event):
-        """ On removed event """
-
         self.copysync.appendToQueue(event.src_path)
