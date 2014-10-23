@@ -154,12 +154,15 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     # noinspection PyAugmentAssignment
     def syncJob(self, thread):
         """ This job is taking care of queued files to copy to remote server """
+
+        queueID = 0
         
         while True:
             time.sleep(0.1)
             
             if len(self.queue) > 0:
-                self.hooking.execute('app.syncJob.Queue.iterate', self.queue)
+                queueID = queueID + 1
+                self.hooking.execute('app.syncJob.Queue.iterate', queueID)
                 
                 # iterate over queue to send elements
                 for item in self.queue.keys():
@@ -171,7 +174,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                         'state': 'starting',
                         'queueLength': len(self.queue),
                         'result': False,
-                        'retries': 0
+                        'retries': 0,
+                        'operationType': ''
                     })
                     
                     result = False
@@ -248,7 +252,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                         'operationType': operationType
                     })
                     
-                self.hooking.execute('app.syncJob.Queue.iterated', self.queue)
+                self.hooking.execute('app.syncJob.Queue.iterated', queueID)
                 
                 # execute a shell command after queue is sent
                 if self.queueShellCallback:
