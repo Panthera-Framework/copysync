@@ -83,8 +83,7 @@ class Handler:
 
             return obj(*args)
         except Exception as e:
-            self.app.logging.output('Got unexpected exception '+str(e), 'sftp')
-            traceback.print_stack()
+            self.app.logging.output('Got unexpected exception '+str(e)+' for method '+str(method)+str(args)+', '+str(traceback.format_exc()), 'sftp')
             return True
 
         return code
@@ -103,10 +102,11 @@ class Handler:
         """ Copy a file or directory """
 
         remoteAbs = os.path.abspath(self.path+remote)
+        self.app.logging.output(local+ ' -> '+remoteAbs, 'sftp')
         
         if os.path.isfile(local):
             try:
-                self.connection.put(local, remoteAbs, preserve_mtime=True)
+                self.connection.put(local, remoteAbs, preserve_mtime=self.app.config.getKey('sftp.preserveModificationTime', False))
             except OSError as e:
                 self.app.logging.output('sftp copy failed on '+remote+', details: '+str(e), 'sftp')
         else:
