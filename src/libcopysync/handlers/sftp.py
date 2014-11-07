@@ -3,6 +3,7 @@ import os
 import socket
 import time
 import traceback
+import sys
 
 class Handler:
     connection = None
