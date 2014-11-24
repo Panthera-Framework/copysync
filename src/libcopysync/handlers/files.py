@@ -1,6 +1,7 @@
 import os
 import sys
 import shutil
+import subprocess
 
 class Handler:
     app = None
@@ -85,3 +86,14 @@ class Handler:
             self.app.logging.output('Cannot delete remove file "'+remote+'", details: '+str(e), 'sftp')
 
         return True
+
+    def shellExecute(self, command):
+        """
+            Execute a shell command
+
+            :param command: command string
+            :return: result list of every executed command
+        """
+
+        os.chdir(self.path)
+        return subprocess.check_output(command, shell=True)
