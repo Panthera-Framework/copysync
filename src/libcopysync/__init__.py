@@ -262,8 +262,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                         try:
                             commandResult = str(self.destination.shellExecute(self.queueShellCallback))
                             self.logging.output(self.queueShellCallback+' ~ '+commandResult, 'syncjob')
-                        except Exception:
-                            self.logging.output('Cannot execute shell command "'+self.queueShellCallback, 'syncjob')
+                        except Exception as e:
+                            self.logging.output('Cannot execute shell command "'+self.queueShellCallback+'", details: '+str(e), 'syncjob')
 
                         self.hooking.execute('app.syncJob.Queue.shell.executed', commandResult)
                 
