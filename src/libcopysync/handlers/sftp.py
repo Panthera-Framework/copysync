@@ -157,5 +157,6 @@ class Handler:
             :param command: command string
             :return: result list of every executed command
         """
-        
+
+        self.connection.chdir(self.path)
         return self.connection.execute(command)
