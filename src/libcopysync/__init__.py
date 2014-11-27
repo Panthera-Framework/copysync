@@ -151,7 +151,6 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         return md5.digest()
 
 
-    # noinspection PyAugmentAssignment
     def syncJob(self, thread):
         """ This job is taking care of queued files to copy to remote server """
 
