@@ -33,14 +33,24 @@ class gitPlugin:
                        choices=[("(1)", "Add untracked files to queue"),
                                 ("(2)", "Cancel")])
 
+        if tag == '(1)':
+            self.selectAllMenu(self.untrackedFilesMenu)
+
         sys.stdout = __stdout
 
+    def selectAllMenu(self, callback):
+        code, tag = self.dialog.menu("Start with",
+                       choices=[("(1)", "All positions checked"),
+                                ("(2)", "All positions unchecked")])
+        checked = 0
+
         if tag == '(1)':
-            self.untrackedFilesMenu()
+            checked = 1
+
+        return callback(checked=checked)
 
 
-
-    def untrackedFilesMenu(self):
+    def untrackedFilesMenu(self, checked=1):
         """
         Display menu with list of untracked files to select to add to queue
         :return:
@@ -58,11 +68,13 @@ class gitPlugin:
             if not line:
                 break
 
-            choices.append((str(line.replace("\t", '')), "", 1))
+            choices.append((str(line.replace("\t", '')), "", checked))
 
-        code, tags = self.dialog.checklist("Select files:", choices=choices)
+        code, tags = self.dialog.checklist("Select files:", choices=choices, width=100, height=25, list_height=15)
 
         if tags:
             for file in tags:
                 self.kernel.appendToQueue(file)
+        else:
+            self.gitMenu()
 
