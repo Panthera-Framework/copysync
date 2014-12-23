@@ -5,6 +5,7 @@ import libcopysync.handlers.ftp
 import libcopysync.handlers.sftp
 import libcopysync.handlers.files
 import libcopysync.args
+import subprocess
 import sys
 import time
 import os
