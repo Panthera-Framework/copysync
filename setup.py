@@ -14,5 +14,6 @@ setup(
     package_dir={'': 'src'},      
     packages=['libcopysync', 'libcopysync.watchers', 'libcopysync.handlers'],
     author_email='webnull.www@gmail.com',
-    scripts=['copysync']
+    scripts=['copysync'],
+    data_files=[('/usr/share/copysync/plugins', ['usr/share/copysync/plugins/git.py', 'usr/share/copysync/plugins/notify.py'])]
 )

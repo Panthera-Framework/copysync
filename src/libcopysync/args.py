@@ -5,6 +5,7 @@ import getpass
 
 class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
     copysync = None
+    description = 'File synchronization application. Provides a scriptable bridge between two locations with filters, plugins, shell scripts and more.'
     
     def parse(self):
         pantheradesktop.argsparsing.pantheraArgsParsing.parse(self)
@@ -68,6 +69,32 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
         except Exception as e:
             self.panthera.logging.output('Cannot import filters: '+str(e), 'copysync.args')
 
+    def setBackupPath(self, path):
+        """
+        Set path where backup archives will be stored
+        :param path:
+        :return:
+        """
+
+        if not os.path.isdir(path) or not os.access(path, os.W_OK):
+            print('Cannot find backup directory or backup directory is not writable')
+            sys.exit(1)
+
+        ## force load "backup" plugin if avaliable
+        self.panthera.loadPlugins()
+
+        if not 'backup' in self.app.pluginsAvailable:
+            print('Cannot find "backup" plugin. Is this copysync installation missing it?')
+            sys.exit(1)
+
+        #self.panthera.togglePlugin('backup', True)
+
+        try:
+            self.panthera.loadPlugin('backup')
+        except Exception as e:
+            print('Cannot run "backup" plugin. Details: '+str(e))
+            sys.exit(1)
+
     def addArgs(self):
         """ Add application command-line arguments """
     
@@ -76,3 +103,4 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
         self.createArgument('--debug', self.setDebuggingMode, '', 'Enable debugging mode', required=False, action='store_false')
         self.createArgument('--skip_hidden_files', self.setSkipHiddenFiles, '', '(Optional) Exclude hidden files or directories from synchronization', required=False, action='store_false')
         self.createArgument('--filters', self.readFilters, '', '(Optional) Read regex filters from file', required=False, action='store')
+        self.createArgument('--backup', self.setBackupPath, '', '(Optional) Backup directory path', required=False, action='store')
