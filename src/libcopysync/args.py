@@ -87,13 +87,20 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
             print('Cannot find "backup" plugin. Is this copysync installation missing it?')
             sys.exit(1)
 
-        #self.panthera.togglePlugin('backup', True)
-
         try:
             self.panthera.loadPlugin('backup')
         except Exception as e:
             print('Cannot run "backup" plugin. Details: '+str(e))
             sys.exit(1)
+
+    def noCopy(self, value = ''):
+        """
+        Do not copy files, just execute command specified in a plugin or --execute when any files are modified
+
+        :return: None
+        """
+
+        self.panthera.noCopy = True
 
     def addArgs(self):
         """ Add application command-line arguments """
@@ -101,6 +108,7 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
         self.createArgument('--execute', self.setQueuePostCommand, '', '(Optional) Execute shell command when every queue of files will be sent', required=False, action='store')
         self.createArgument('--password', self.setPassword, '', '(Optional) Set password', required=False, action='store_false')
         self.createArgument('--debug', self.setDebuggingMode, '', 'Enable debugging mode', required=False, action='store_false')
-        self.createArgument('--skip_hidden_files', self.setSkipHiddenFiles, '', '(Optional) Exclude hidden files or directories from synchronization', required=False, action='store_false')
+        self.createArgument('--skip-hidden-files', self.setSkipHiddenFiles, '', '(Optional) Exclude hidden files or directories from synchronization', required=False, action='store_false')
         self.createArgument('--filters', self.readFilters, '', '(Optional) Read regex filters from file', required=False, action='store')
         self.createArgument('--backup', self.setBackupPath, '', '(Optional) Backup directory path', required=False, action='store')
+        self.createArgument('--no-copy', self.noCopy, '', '(Optional) Do not copy files, just execute command specified in a plugin or --execute when any files are modified', required=False, action='store_false')

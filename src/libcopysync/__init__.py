@@ -53,6 +53,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     maxFileSize = 5242880 # 5 Mbytes
     queueShellCallback = None
     queueFilters = {}
+    noCopy = False
     
     
     def checkDestination(self):
@@ -85,6 +86,13 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 self.logging.output('Shell command will not be executed as the connection handler does not support commands execution', 'copysync')
             
         self.logging.output('Whooho, done', 'copysync')
+
+        if self.noCopy:
+            self.logging.output('Locking write methods as --no-copy argument was used', 'copysync')
+            self.destination.sendObject = self.noCopyCallback
+            self.destination.removeObject = self.noCopyCallback
+            self.destination.renameObject = self.noCopyCallback
+
 
 
 
@@ -234,7 +242,6 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
 
                     # execute actions hooked up by structural filters
                     if isinstance(self.queue[item], list):
-
                         try:
                             self.executeItemAction(item)
                         except Exception as e:
@@ -266,7 +273,17 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                             self.logging.output('Cannot execute shell command "'+self.queueShellCallback+'", details: '+str(e), 'syncjob')
 
                         self.hooking.execute('app.syncJob.Queue.shell.executed', commandResult)
-                
+
+    def noCopyCallback(self, a = '', b = '', c = ''):
+        """
+        Empty callback that will do not allow to execute any action on destination
+        :param a:
+        :param b:
+        :param c:
+        :return:
+        """
+
+        return True
             
     def executeItemAction(self, item):
         """
