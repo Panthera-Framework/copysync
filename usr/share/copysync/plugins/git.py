@@ -53,6 +53,9 @@ class gitPlugin:
         code, tag = self.dialog.menu("Start with", choices=choices)
         checked = 0
 
+        if code > 0:
+            return None
+
         if tag == '(1)':
             checked = 1
 
@@ -87,7 +90,7 @@ class gitPlugin:
             if not line:
                 break
 
-            choices.append((str(line.replace("\t", '')), "", checked))
+            choices.append((str(line.replace("\t", '')), "(untracked)", checked))
 
         # not commited files
         if commitedChecked is not None:
@@ -105,7 +108,7 @@ class gitPlugin:
         if not choices:
             return self.gitMenu()
 
-        code, tags = self.dialog.checklist("Select untracked files:", choices=choices, width=100, height=25, list_height=15)
+        code, tags = self.dialog.checklist("Select untracked files:", choices=choices, width=100, height=25, list_height=18)
 
         if tags:
             for file in tags:
