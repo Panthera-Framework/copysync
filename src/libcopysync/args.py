@@ -34,15 +34,8 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
         """
         
         self.panthera.ignoreHiddenFiles = True
-        
-    def setDebuggingMode(self, aaa=''):
-        """
-            Enable debugging mode
-        """
-        
-        self.panthera.logging.silent = False
-        self.panthera.logging.flushAndEnablePrinting()
-        
+
+
     def setQueuePostCommand(self, queuePostCommand):
         """
             Set command that will be sent to server after finished queued files sending
@@ -107,7 +100,6 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
     
         self.createArgument('--execute', self.setQueuePostCommand, '', '(Optional) Execute shell command when every queue of files will be sent', required=False, action='store')
         self.createArgument('--password', self.setPassword, '', '(Optional) Set password', required=False, action='store_false')
-        self.createArgument('--debug', self.setDebuggingMode, '', 'Enable debugging mode', required=False, action='store_false')
         self.createArgument('--skip-hidden-files', self.setSkipHiddenFiles, '', '(Optional) Exclude hidden files or directories from synchronization', required=False, action='store_false')
         self.createArgument('--filters', self.readFilters, '', '(Optional) Read regex filters from file', required=False, action='store')
         self.createArgument('--backup', self.setBackupPath, '', '(Optional) Backup directory path', required=False, action='store')

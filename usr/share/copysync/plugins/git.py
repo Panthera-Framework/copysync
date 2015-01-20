@@ -31,12 +31,26 @@ class gitPlugin:
 
         code, tag = self.dialog.menu("Options",
                        choices=[("(1)", "Add untracked/uncommited files to queue"),
-                                ("(2)", "Cancel")])
+                                ("(2)", "Clear backup files after merge"),
+                                ("(3)", "Cancel")])
 
         if tag == '(1)':
             self.selectAllMenu(callback = self.notCommitedFilesMenu, notCommitedMenu = True)
 
+        if tag == '(2)':
+            self.clearFilesAfterMerge()
+
         sys.stdout = __stdout
+
+    def clearFilesAfterMerge(self):
+        """
+        Clear files that stays after resolved merge conflict eg. with names ".orig" or ".LOCAL"
+        :return:
+        """
+
+        os.chdir(self.kernel.localDirectory)
+        subprocess.check_output('git clean -fd', shell=True)
+        self.dialog.msgbox("Cleaned up git directory using 'git clean -fd'\nCurrent git status:\n"+subprocess.check_output('git status', shell=True), width=120, height=30)
 
 
     def selectAllMenu(self, callback, notCommitedMenu = False):
