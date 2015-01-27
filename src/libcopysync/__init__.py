@@ -41,8 +41,9 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     destinationAddress = None
     destinationHandler = 'files'
     destination = None
-    threads = {};
-    queue = {};
+    threads = {}
+    queue = {}
+    queueVirtualContent = {} # alternative paths where file content is
     defaultWatcher = "fswatchdog"
     watcher = None
     localDirectory = None
@@ -333,6 +334,15 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 return 0
             
             try:
+                if path in self.queueVirtualContent:
+
+                    try:
+                        os.unlink(self.queueVirtualContent[path])
+                    except OSError:
+                        pass # pass, as it will be deleted anyway with cleanup on application exit (see self.cleanupTempDir() for more informations)
+
+                    del self.queueVirtualContent[path]
+
                 del self.queue[path]
                 self.logging.output('Removed '+path+' from queue after '+str(retries)+' write retries', 'copysync')
                 return retries
@@ -342,12 +352,19 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 
                 
         
-    def appendToQueue(self, path):
+    def appendToQueue(self, path, contents = ''):
         """ 
             Safely append to queue from thread 
             Automaticaly retries with timeout on write error
+
+            :param str path: Local file path
         """
-        
+
+        if contents:
+            tmp = open(self.tmpDir+"/"+hashlib.md5(path).hexdigest(), "w")
+            tmp.write(contents)
+            tmp.close()
+
         retries = 0
         forceContinue = False
         skipByPlugin = False
@@ -427,19 +444,38 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 return 0
             
             try:
+                if contents:
+                    self.queueVirtualContent[path] = self.tmpDir+"/"+hashlib.md5(path).hexdigest()
+
                 self.queue[path] = queueHookForFile
                 self.logging.output('Added '+path+' to queue after '+str(retries)+' write retries', 'copysync')
                 return retries
 
             except Exception:
                 retries = retries + 1
-                time.sleep(self.config.getKey('queueRetryTime', 100))
+                time.sleep(self.config.getKey('queueRetryTime', 1))
 
-                
+    def cleanupTempDir(self):
+        """
+        Remove a temporary directory
+        :return:
+        """
+
+        os.system("rm -rf /tmp/.copysync-"+str(os.getpid()))
     
     def mainLoop(self, a=''):
         """ Application's main function """
 
+        ## temporary directory
+        self.tmpDir = '/tmp/.copysync-'+str(os.getpid())
+
+        if not os.path.isdir(self.tmpDir):
+            os.mkdir(self.tmpDir)
+
+        self.hooking.addOption('app.pa_exit', self.cleanupTempDir)
+
+
+        ## settings
         self.logging.dateFormat = '%H:%m:%S %d.%m.%Y'
         
         self.maxFileSize = tools.human2bytes(self.config.getKey('maxFileSize', '5M'))
