@@ -14,12 +14,12 @@ class Handler:
         
         self.app = app
 
-        if not self.app.config.getKey('files.preserveModificationTime', False):
-            self.copy = shutil.copy
-        else:
+        if self.app.config.getKey('files.preserveModificationTime', False):
             self.copy = shutil.copy2
-        
-        
+        else:
+            self.copy = shutil.copy
+
+
     def connect(self, url, data):
         """
         Perform a argument validation, check if paths are writable
@@ -54,8 +54,11 @@ class Handler:
         :return: Bool
         """
 
-        remoteAbs = os.path.abspath(self.path+remote)
+        remoteAbs = os.path.abspath(self.path+ "/" +remote)
         self.app.logging.output(local+ ' -> '+remoteAbs, 'files')
+
+        if not os.getcwd() in local:
+            local = os.getcwd() + "/"+local
 
         local = local.replace(" ", "\ ")
         remoteAbs = remoteAbs.replace(" ", "\ ")
