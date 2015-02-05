@@ -7,11 +7,17 @@ class Handler:
     app = None
     path = None
     status = {}
+    copy = None # copy function
     
     def __init__(self, app):
         """ Constructor """
         
         self.app = app
+
+        if not self.app.config.getKey('files.preserveModificationTime', False):
+            self.copy = shutil.copy
+        else:
+            self.copy = shutil.copy2
         
         
     def connect(self, url, data):
@@ -51,6 +57,9 @@ class Handler:
         remoteAbs = os.path.abspath(self.path+remote)
         self.app.logging.output(local+ ' -> '+remoteAbs, 'files')
 
+        local = local.replace(" ", "\ ")
+        remoteAbs = remoteAbs.replace(" ", "\ ")
+
         if os.path.isfile(local):
             # try to make directories recursively
             if not os.path.isdir(os.path.dirname(remoteAbs)):
@@ -61,7 +70,7 @@ class Handler:
 
             # try to copy a file
             try:
-                shutil.copy2(local, remoteAbs)
+                self.copy(local, remoteAbs)
             except Exception as e:
                 self.app.logging.output('Cannot do copy -p '+local+' '+remoteAbs+', details: '+str(e), 'files')
 
