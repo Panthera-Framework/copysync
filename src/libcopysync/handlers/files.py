@@ -60,8 +60,8 @@ class Handler:
         if not os.getcwd() in local:
             local = os.getcwd() + "/"+local
 
-        local = local.replace(" ", "\ ")
-        remoteAbs = remoteAbs.replace(" ", "\ ")
+        #local = local.replace(" ", "\ ")
+        #remoteAbs = remoteAbs.replace(" ", "\ ")
 
         if os.path.isfile(local):
             # try to make directories recursively
