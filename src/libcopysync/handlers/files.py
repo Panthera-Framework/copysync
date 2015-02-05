@@ -17,7 +17,7 @@ class Handler:
         if self.app.config.getKey('files.preserveModificationTime', False):
             self.copy = shutil.copy2
         else:
-            self.copy = shutil.copy
+            self.copy = shutil.copyfile
 
 
     def connect(self, url, data):
