@@ -23,6 +23,8 @@ class Handler:
         :return: None
         """
 
+        self.app.logging.output('Initializing files handler for url '+url, 'files')
+
         if not "path" in data and not url.startswith('/'):
             print("Not a valid filesystem path")
             sys.exit(1)
@@ -47,6 +49,7 @@ class Handler:
         """
 
         remoteAbs = os.path.abspath(self.path+remote)
+        self.app.logging.output(local+ ' -> '+remoteAbs, 'files')
 
         if os.path.isfile(local):
             # try to make directories recursively
@@ -77,6 +80,7 @@ class Handler:
         """ Remove a file or directoy from remote destination """
 
         remoteAbs = os.path.abspath(self.path+remote)
+        self.app.logging.output(local+ ' -/> '+remoteAbs, 'files')
 
         try:
             if os.path.isfile(remoteAbs):
