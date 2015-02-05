@@ -6,6 +6,7 @@ import subprocess
 class Handler:
     app = None
     path = None
+    status = {}
     
     def __init__(self, app):
         """ Constructor """

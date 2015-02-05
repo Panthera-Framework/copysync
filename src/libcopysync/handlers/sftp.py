@@ -4,6 +4,7 @@ import socket
 import time
 import traceback
 import sys
+import pexpect
 
 class Handler:
     connection = None
@@ -13,6 +14,7 @@ class Handler:
     port = 22
     app = None
     path = None
+    sshfs = None
     
     def __init__(self, app):
         """ Constructor """
@@ -48,9 +50,40 @@ class Handler:
             
         # destination path
         self.path = data.path
-        self.reconnect()
 
 
+        ## fallback to files handler on paramiko compatibility failure (will connect via sshfs using files handler)
+        try:
+            self.reconnect()
+        except Exception as e:
+            if "Incompatible ssh peer" in e.message:
+                self.app.logging.output('Falling back to sshfs', 'sftp')
+                self.app.hooking.addOption('app.pa_exit', self.cleanupSSHFS)
+
+                os.mkdir("/tmp/copysync-sshfs-"+str(os.getpid()))
+                command = "sshfs "+self.username+"@"+self.hostname+":"+self.path+" /tmp/copysync-sshfs-"+str(os.getpid())+" -p "+str(self.port)+" -o password_stdin,auto_unmount"
+                self.app.logging.output(command, 'sftp')
+
+                self.sshfs = pexpect.spawn(command)
+                self.sshfs.expect("")
+                time.sleep(1)
+                self.sshfs.sendline(self.password)
+
+                self.status = {
+                    'destinationAddress': "/tmp/copysync-sshfs-"+str(os.getpid()),
+                    'destinationHandler': 'files'
+                }
+
+
+    def cleanupSSHFS(self, opts = ''):
+        """
+        Clean up after sshfs fallback session
+        :param opts:
+        :return:
+        """
+
+        os.system("fusermount -zu /tmp/copysync-sshfs-"+str(os.getpid()))
+        os.system("rm /tmp/copysync-sshfs-"+str(os.getpid())+" -rf")
 
     def reconnect(self):
         """

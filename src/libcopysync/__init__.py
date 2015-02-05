@@ -41,6 +41,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     destinationAddress = None
     destinationHandler = 'files'
     destination = None
+    destinationParent = None
     threads = {}
     queue = {}
     queueVirtualContent = {} # alternative paths where file content is
@@ -81,6 +82,17 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         except Exception as e:
             print("Cannot connect to server: "+str(e))
             sys.exit(1)
+
+        # fallback
+        if self.destination.status and "destinationAddress" in self.destination.status:
+            self.logging.output('Falling back, set destination to '+self.destination.status['destinationAddress'], 'copysync')
+            self.destinationAddress = self.destination.status['destinationAddress']
+
+            if "destinationHandler" in self.destination.status:
+                self.destinationHandler = self.destination.status['destinationHandler']
+
+            self.checkDestination()
+
             
         if self.queueShellCallback:
             if not callable(getattr(self.destination, "shellExecute", None)):
@@ -242,11 +254,11 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                     print(operationType+" "+item)
 
                     # execute actions hooked up by structural filters
-                    if isinstance(self.queue[item], list):
+                    if isinstance(self.queue[item]['hook'], list):
                         try:
                             self.executeItemAction(item)
                         except Exception as e:
-                            self.logging.output('Cannot execute post-process action '+str(self.queue[item])+' for file '+item, 'copysync')
+                            self.logging.output('Cannot execute post-process action '+str(self.queue[item]['hook'])+' for file '+item, 'copysync')
 
                     # remove item from queue afery copy operation
                     self.removeFromQueue(item)
@@ -293,10 +305,10 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         :return: null
         """
 
-        if self.queue[item][0] == 'execute':
-            self.logging.output(self.queue[item][1]+ ' ~ '+str(self.destination.shellExecute(self.queue[item][1])), 'copysync')
-        elif self.queue[item][0] == 'local.execute':
-            self.logging.output(self.queue[item][1]+ ' $~ '+str(subprocess.getoutput(self.queue[item][1])), 'copysync')
+        if self.queue[item]['hook'][0] == 'execute':
+            self.logging.output(self.queue[item]['hook'][1]+ ' ~ '+str(self.destination.shellExecute(self.queue[item]['hook'][1])), 'copysync')
+        elif self.queue[item]['hook'][0] == 'local.execute':
+            self.logging.output(self.queue[item]['hook'][1]+ ' $~ '+str(subprocess.getoutput(self.queue[item]['hook'][1])), 'copysync')
 
     
     def toVirtualPath(self, path):
@@ -352,7 +364,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 
                 
         
-    def appendToQueue(self, path, contents = ''):
+    def appendToQueue(self, path, contents = '', forceRemove = False):
         """ 
             Safely append to queue from thread 
             Automaticaly retries with timeout on write error
@@ -447,7 +459,11 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 if contents:
                     self.queueVirtualContent[path] = self.tmpDir+"/"+hashlib.md5(path).hexdigest()
 
-                self.queue[path] = queueHookForFile
+                self.queue[path] = {
+                    'hook': queueHookForFile,
+                    'remove': forceRemove
+                }
+
                 self.logging.output('Added '+path+' to queue after '+str(retries)+' write retries', 'copysync')
                 return retries
 
