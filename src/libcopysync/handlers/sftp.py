@@ -15,6 +15,7 @@ class Handler:
     app = None
     path = None
     sshfs = None
+    status = {}
     
     def __init__(self, app):
         """ Constructor """
