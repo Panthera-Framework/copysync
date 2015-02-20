@@ -17,7 +17,7 @@ class historyPlugin:
     :author: Damian Kęska <damian.keska@fingo.pl>
     """
 
-    history = ''
+    history = list()
 
     def __init__(self, app):
         """
@@ -39,13 +39,21 @@ class historyPlugin:
     def queueFileAction(self, args):
         """
         Capture queue actions to put into history log
-        """
 
+        :param dict args: Input queue state parameters
+        :author: Damian Kęska <damian.keska@fingo.pl>
+        :return: input args
+        """
 
         if not 'operationType' in args or not args['operationType']:
             return args
 
-        self.history += "["+time.strftime("%d.%m.%Y %H:%M:%S")+"] " + args['operationType'] + " " +args['virtualPath']+ "\n"
+        # mapping:
+        # 0 => date
+        # 1 => operation type (eg. add, remove)
+        # 2 => virtual path
+
+        self.history.append((time.strftime("%d.%m.%Y %H:%M:%S"), args['operationType'], args['virtualPath']))
 
         return args
 
@@ -60,7 +68,12 @@ class historyPlugin:
         __stdout = sys.stdout
         sys.stdout = f
 
-        self.dialog.msgbox(self.history, width=160, height=30)
+        historyString = ''
+
+        for entry in self.history:
+            historyString += "["+entry[0]+"] "+entry[1]+": "+entry[2]+" \n"
+
+        self.dialog.msgbox(historyString, width=160, height=30)
 
         # restore stdout
         sys.stdout = __stdout
