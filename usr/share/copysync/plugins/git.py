@@ -25,6 +25,17 @@ class gitPlugin:
 
         self.kernel = app
 
+        # hook up to args init
+        self.kernel.hooking.addOption('app.argsparsing.init', self.__pluginInit__, priority=98)
+
+    def __pluginInit__(self, args = ''):
+        """
+        Initialize the plugin after all dependencies are met
+
+        :param args:
+        :return:
+        """
+
         ## list all remotes at initialization
         remotes = self._gitCommand('remote -v')
 
@@ -34,18 +45,18 @@ class gitPlugin:
             if len(parts) < 3:
                 continue
 
-            app.logging.output('Detected git remote: '+parts[1]+' '+parts[2], 'git')
+            self.kernel.logging.output('Detected git remote: '+parts[1]+' '+parts[2], 'git')
 
 
         if "fatal:" in remotes:
-            app.logging.output('Git responded with a fatal error, '+remotes, 'git')
+            self.kernel.logging.output('Git responded with a fatal error, '+remotes, 'git')
             return False
 
         ## check branch to display at init
         status = self._gitCommand('status').split("\n")
         self.currentBranch = self._gitCommand('rev-parse --abbrev-ref HEAD')
 
-        app.logging.output(status[0], 'git')
+        self.kernel.logging.output(status[0], 'git')
 
         ## initialize interface
         self.dialog = Dialog(dialog="dialog")
@@ -220,6 +231,8 @@ class gitPlugin:
         """
 
         self._gitCommand('clean -fd')
+
+        # TODO: Confirmation using clean -n (dry run)
         self.dialog.msgbox("Cleaned up git directory using 'git clean -fd'\nCurrent git status:\n"+subprocess.check_output('git status', shell=True), width=120, height=30)
 
 

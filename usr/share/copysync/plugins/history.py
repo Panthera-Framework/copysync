@@ -23,6 +23,7 @@ class historyPlugin:
         """
         Initialize - append callbacks to copysync functions
         :param app:
+        :author: Damian Kęska <damian.keska@fingo.pl>
         :return:
         """
 
@@ -32,11 +33,24 @@ class historyPlugin:
         # hook up to queue
         self.kernel.hooking.addOption('app.syncJob.Queue.iterate.item', self.queueFileAction, priority=10)
 
+        # hook up to args init
+        self.kernel.hooking.addOption('app.argsparsing.init', self.initializeInteractive, priority=99)
+
+
+    def initializeInteractive(self, args = ''):
+        """
+        hook up to interactive console
+
+        :param args:
+        :author: Damian Kęska <damian.keska@fingo.pl>
+        :return:
+        """
+
         # hook up to interactive console
         if self.kernel.interactive:
             self.kernel.interactive.recognizedChars['h'] = self.showHistoryWindow
 
-    def queueFileAction(self, args):
+    def queueFileAction(self, args = ''):
         """
         Capture queue actions to put into history log
 
