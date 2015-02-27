@@ -1,5 +1,4 @@
 import time
-import libcopysync
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
