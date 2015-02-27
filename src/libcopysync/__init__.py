@@ -77,6 +77,9 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         
         # logging
         self.logging.output("Connecting to "+self.destinationAddress+" via "+self.destinationHandler+" handler", "copysync")
+
+        # @hook app.checkDestination.handlerSelection
+        tmp = self.hooking.execute('app.checkDestination.handlerSelection', tmp)
         
         try:
             self.destination = tmp.Handler(self)
@@ -94,6 +97,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
             if "destinationHandler" in self.destination.status:
                 self.destinationHandler = self.destination.status['destinationHandler']
 
+            # @hook app.checkDestination.handlerSelection.fallback
+            self.destinationHandler = self.hooking.execute('app.checkDestination.handlerSelection.fallback', self.destinationHandler)
             self.checkDestination()
 
             
@@ -103,11 +108,17 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
             
         self.logging.output('Whooho, done', 'copysync')
 
+        # @hook app.checkDestination.handlerSelection
+        self.destination = self.hooking.execute('app.checkDestination.handlerSelection.done', self.destination)
+
         if self.noCopy:
             self.logging.output('Locking write methods as --no-copy argument was used', 'copysync')
             self.destination.sendObject = self.noCopyCallback
             self.destination.removeObject = self.noCopyCallback
             self.destination.renameObject = self.noCopyCallback
+
+            # @hook app.checkDestination.handlerSelection.noCopy
+            tmp = self.hooking.execute('app.checkDestination.handlerSelection.noCopy', tmp)
 
 
 
@@ -212,7 +223,6 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                         # skip file if it was not changed during last upload time
                         if item in self.hashTable and self.hashTable[item] == hash:
                             self.removeFromQueue(item)
-                            #print("REMOVED BY HASH "+str(item))
                             continue
                         
                         self.hashTable[item] = hash
@@ -238,7 +248,6 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                             if fileRetries > 5:
                                 break
                     else:
-                        #print("REMOVE "+str(item))
                         operationType = "remove"
                         
                         # if file or directory does not exists anymore
