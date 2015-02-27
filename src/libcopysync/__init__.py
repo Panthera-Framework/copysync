@@ -53,9 +53,12 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     # built-in options
     ignoreHiddenFiles = False
     maxFileSize = 5242880 # 5 Mbytes
+    noCopy = False
+
+    # queue
+    queueLock = False
     queueShellCallback = None
     queueFilters = {}
-    noCopy = False
     
     
     def checkDestination(self):
@@ -372,11 +375,6 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
             :param str path: Local file path
         """
 
-        if contents:
-            tmp = open(self.tmpDir+"/"+hashlib.md5(path).hexdigest(), "w")
-            tmp.write(contents)
-            tmp.close()
-
         retries = 0
         forceContinue = False
         skipByPlugin = False
@@ -384,6 +382,14 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
 
         # python-like filters from plugins
         skipByPlugin, forceContinue, path = self.hooking.execute('app.syncJob.Queue.append.before', [skipByPlugin, forceContinue, path])
+
+        if self.queueLock:
+            return False
+
+        if contents:
+            tmp = open(self.tmpDir+"/"+hashlib.md5(path).hexdigest(), "w")
+            tmp.write(contents)
+            tmp.close()
 
         if skipByPlugin:
             return 0
@@ -429,6 +435,12 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                 action[0] = action[0].replace('= ', '')
 
                 if action[0] == 'skip':
+                    self.hooking.execute('app.syncJob.Queue.append', {
+                        'file': path,
+                        'virtualPath': self.toVirtualPath(path),
+                        'status': 'skipped',
+                        'reason': 'skipped_by_filter'
+                    })
                     return 0
 
                 queueHookForFile = action
@@ -438,6 +450,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         # skipping hidden files
         if self.ignoreHiddenFiles and "/." in self.toVirtualPath(path) and not forceContinue:
             self.hooking.execute('app.syncJob.Queue.append', {
+                'file': path,
+                'virtualPath': self.toVirtualPath(path),
                 'status': 'skipped',
                 'reason': 'hidden_files_are_ignored'
             })
@@ -446,6 +460,8 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
         # filesize limit
         if os.path.isfile(path) and self.maxFileSize > 0 and os.path.getsize(path) > self.maxFileSize and not forceContinue:
             self.hooking.execute('app.syncJob.Queue.append', {
+                'file': path,
+                'virtualPath': self.toVirtualPath(path),
                 'status': 'skipped',
                 'reason': 'file_size_too_big'
             })
@@ -463,6 +479,12 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
                     'hook': queueHookForFile,
                     'remove': forceRemove
                 }
+
+                self.hooking.execute('app.syncJob.Queue.append.after', {
+                    'file': path,
+                    'virtualPath': self.toVirtualPath(path),
+                    'status': 'success'
+                })
 
                 self.logging.output('Added '+path+' to queue after '+str(retries)+' write retries', 'copysync')
                 return retries

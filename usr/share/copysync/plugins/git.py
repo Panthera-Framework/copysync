@@ -2,6 +2,7 @@
 import os
 import sys
 import subprocess
+import time
 from dialog import Dialog
 
 """
@@ -12,6 +13,9 @@ Git integration plugin for copysync
 
 class gitPlugin:
     dialog = None
+    lastQueueLock = 0
+    __gitFilesCount = 0
+    currentBranch = ""
 
     def __init__(self, app):
         """
@@ -40,12 +44,52 @@ class gitPlugin:
 
         ## check branch to display at init
         status = self._gitCommand('status').split("\n")
+        self.currentBranch = self._gitCommand('rev-parse --abbrev-ref HEAD')
 
         app.logging.output(status[0], 'git')
 
-
+        ## initialize interface
         self.dialog = Dialog(dialog="dialog")
-        self.kernel.interactive.recognizedChars['g'] = self.gitMenu
+
+        if self.kernel.interactive:
+            self.kernel.interactive.recognizedChars['g'] = self.gitMenu
+
+        ## hook up to queue (to hold on application on branch change)
+        self.kernel.hooking.addOption('app.syncJob.Queue.append.before', self.queueAppendAction, priority=10)
+
+
+    def queueAppendAction(self, status):
+        """
+        On appending to queue
+        :param status:
+        :return:
+        """
+
+        if self.kernel.queueLock:
+            status[0] = True
+
+        if '.git' in status[2]:
+            self.__gitFilesCount = self.__gitFilesCount + 1
+
+            if self.kernel.queueLock:
+                self.kernel.logging.output('Removing git lock', 'git')
+                self.kernel.queueLock = False
+
+            status[0] = True
+        else:
+            if self.__gitFilesCount > 4:
+                branch = self._gitCommand('rev-parse --abbrev-ref HEAD')
+
+                if branch != self.currentBranch:
+                    self.kernel.logging.output('Creating git lock, as branch changed', 'git')
+                    self.kernel.queueLock = True
+
+                self.currentBranch = branch
+
+            self.__gitFilesCount = 0
+
+        return status
+
 
     def gitMenu(self):
         """
@@ -61,8 +105,9 @@ class gitPlugin:
         code, tag = self.dialog.menu("Options",
                        choices=[("(1)", "Add untracked/uncommited files to queue"),
                                 ("(2)", "Send commits"),
-                                ("(3)", "Clear backup files after merge"),
-                                ("(4)", "Cancel")])
+                                ("(3)", "Revert commits"),
+                                ("(4)", "Clear backup files after merge"),
+                                ("(5)", "Cancel")])
 
         if tag == '(1)':
             self.selectAllMenu(callback = self.notCommitedFilesMenu, notCommitedMenu = True)
@@ -71,12 +116,15 @@ class gitPlugin:
             self.commitsMenu()
 
         elif tag == '(3)':
+            self.commitsMenu(revert = True)
+
+        elif tag == '(4)':
             self.clearFilesAfterMerge()
 
         sys.stdout = __stdout
 
 
-    def commitsMenu(self):
+    def commitsMenu(self, revert = False):
         """
         Recent commits menu
         Allows selecting commits to build list of files and send from selected revisions
@@ -85,22 +133,32 @@ class gitPlugin:
         :return: None
         """
 
-        commits = {}
+        commits = list()
         choices = []
         log = self._gitCommand('--no-pager log --oneline')
+        i = 0
 
         for line in log.split("\n"):
+            i = i + 1
             separator = line.find(' ')
-            commits[line[0:separator]] = line[(separator+1):]
+            commits.append({'id': line[0:separator], 'title': line[(separator+1):], 'number': i})
             choices.append(("("+line[0:separator]+")", line[(separator+1):], 0))
 
-        code, tag = self.dialog.checklist("Submit commits (total: "+str(len(commits))+")", choices=choices, width=120, height=20, list_height=10)
+        if revert:
+            code, tag = self.dialog.checklist("Revert commits (total: "+str(len(commits))+")", choices=choices, width=120, height=20, list_height=10)
+        else:
+            code, tag = self.dialog.checklist("Submit commits (total: "+str(len(commits))+")", choices=choices, width=120, height=20, list_height=10)
 
         if tag:
+            if revert:
+                return self._appendCommitRevertFiles(commits, selected=tag)
+
             ## array of fileName => contents
             files = {}
+            i = 0
 
             for commitID in tag:
+                i = i + 1
                 commitID = commitID.replace('(', '').replace(')', '')
 
                 filesList = self._gitCommand('diff-tree --no-commit-id --name-only -r '+commitID)
@@ -109,29 +167,50 @@ class gitPlugin:
                     self.kernel.logging.output('Cannot get list of files for revision '+commitID, 'git')
                     continue
 
-                for file in filesList.split("\n"):
-                    if not file or not os.path.isfile(self.kernel.localDirectory + "/" + file):
-                        continue
-
-                    if not file in files:
-                        files[file] = self._gitCommand('show '+commitID+':'+file)
-
-                        tmp = open(file, 'r')
-                        self.kernel.appendToQueue(file, tmp.read())
-                        tmp.close()
+                self._appendCommitFiles(commitID, filesList, files, commitNumber = i)
 
 
-
-
-    def _gitCommand(self, command):
+    def _appendCommitRevertFiles(self, commits, selected):
         """
-        Execute a git command
-        :param string command: Command line query string
-        :return: string
+        Append revert of commits
+
+        :param commits: List of all avaliable commits
+        :param selected: Selected commits
+        :return:
         """
 
-        os.chdir(self.kernel.localDirectory)
-        return subprocess.check_output('git '+command, shell = True)
+        selectedList = list()
+        filesList = {}
+
+        # strip "(" and ")" from commits list
+        for commit in selected:
+            selectedList.append(commit.replace('(', '').replace(')', ''))
+
+        # we have to preserve list order
+        for commit in commits:
+            # if commit was selected, and its not a first commit
+            if commit['number'] < 2 or not (commit['id'] in selectedList):
+                continue
+
+            currentCommitFilesList = self._gitCommand('diff-tree --no-commit-id --name-only -r '+commit['id']).split("\n")
+            previousCommitID = commits[commit['number']-2]['id']
+
+            for file in currentCommitFilesList:
+                try:
+                    filesList[file] = self._gitCommand('show '+previousCommitID+':'+file)
+                except Exception as e:
+                    # file propably removed
+                    filesList[file] = False
+                    self.kernel.appendToQueue(file, forceRemove = True)
+                    continue
+
+        ## append oldest versions of files
+        for file, contents in filesList.iteritems():
+            self.kernel.appendToQueue(file, contents = contents)
+
+
+
+
 
     def clearFilesAfterMerge(self):
         """
@@ -219,3 +298,41 @@ class gitPlugin:
                 self.kernel.appendToQueue(file)
         else:
             self.gitMenu()
+
+
+
+
+    def _appendCommitFiles(self, commitID, filesList, files, commitNumber):
+        """
+        Helper method for commitsMenu()
+        Appends commited files to queue
+
+        :param commitID:
+        :param filesList:
+        :param files: "Global" array with list of files we already appended
+        :return: files array
+        """
+
+        for file in filesList.split("\n"):
+            if not file or not os.path.isfile(self.kernel.localDirectory + "/" + file):
+                continue
+
+            if not file in files:
+                files[file] = self._gitCommand('show '+commitID+':'+file)
+
+                tmp = open(file, 'r')
+                self.kernel.appendToQueue(file, tmp.read())
+                tmp.close()
+
+        return files
+
+
+    def _gitCommand(self, command):
+        """
+        Execute a git command
+        :param string command: Command line query string
+        :return: string
+        """
+
+        os.chdir(self.kernel.localDirectory)
+        return subprocess.check_output('git '+command, shell = True)
