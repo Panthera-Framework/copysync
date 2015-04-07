@@ -116,6 +116,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
             self.destination.sendObject = self.noCopyCallback
             self.destination.removeObject = self.noCopyCallback
             self.destination.renameObject = self.noCopyCallback
+            self.destination.shellExecute = self.noCopyCallback
 
             # @hook app.checkDestination.handlerSelection.noCopy
             tmp = self.hooking.execute('app.checkDestination.handlerSelection.noCopy', tmp)
