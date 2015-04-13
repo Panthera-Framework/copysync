@@ -12,6 +12,7 @@ import os
 import hashlib
 import pantheradesktop.tools as tools
 import re
+import traceback
 
 try:
     import urlparse
@@ -59,6 +60,10 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
     queueLock = False
     queueShellCallback = None
     queueFilters = {}
+
+    # handler specific
+    sshKey = ""
+    sshForceFuse = False
     
     
     def checkDestination(self):
@@ -87,6 +92,7 @@ class copysyncMainClass (pantheradesktop.kernel.pantheraDesktopApplication, pant
             
         except Exception as e:
             print("Cannot connect to server: "+str(e))
+            self.logging.output(traceback.format_exc(), 'copysync')
             sys.exit(1)
 
         # fallback

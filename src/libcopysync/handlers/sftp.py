@@ -16,7 +16,7 @@ class Handler:
     path = None
     sshfs = None
     status = {}
-    
+
     def __init__(self, app):
         """ Constructor """
         
@@ -27,7 +27,7 @@ class Handler:
         """
             Connect to remote server using SFTP connection protocol
         """
-        
+
         # user:passwd@host:port
         try:
             atSplit = data.netloc.split('@')
@@ -42,6 +42,7 @@ class Handler:
                 
             if len(user) == 2:
                 self.password = user[1]
+
         except Exception:
             print("Invalid remote sftp path specified syntax: sftp://user:pass@host:port/remote/path, example: sftp://john:test123@localhost:22/tmp/mydir")
             sys.exit(1)
@@ -52,28 +53,62 @@ class Handler:
         # destination path
         self.path = data.path
 
+        ## force use SSHfs tool instead of Paramiko
+        if self.app.sshForceFuse:
+            self.useSSHfs()
+            return
+
 
         ## fallback to files handler on paramiko compatibility failure (will connect via sshfs using files handler)
         try:
-            self.reconnect()
+            self.reconnect(useKey=(self.app.sshKey is not ""))
+
         except Exception as e:
             if "Incompatible ssh peer" in e.message:
                 self.app.logging.output('Falling back to sshfs', 'sftp')
-                self.app.hooking.addOption('app.pa_exit', self.cleanupSSHFS)
+                self.useSSHfs()
+            else:
+                self.app.logging.output('Cannot connect to server, details: ' + str(e.message), 'sftp')
+                print('Cannot connect to server, details: ' + str(e.message))
+                traceback.print_exc()
+                sys.exit(1)
 
-                os.mkdir("/tmp/copysync-sshfs-"+str(os.getpid()))
-                command = "sshfs "+self.username+"@"+self.hostname+":"+self.path+" /tmp/copysync-sshfs-"+str(os.getpid())+" -p "+str(self.port)+" -o password_stdin,auto_unmount"
-                self.app.logging.output(command, 'sftp')
+    def useSSHfs(self):
+        """
+        Use SSHFS instead of Paramiko library
 
-                self.sshfs = pexpect.spawn(command)
-                self.sshfs.expect("")
-                time.sleep(1)
-                self.sshfs.sendline(self.password)
+        :return:
+        """
 
-                self.status = {
-                    'destinationAddress': "/tmp/copysync-sshfs-"+str(os.getpid()),
-                    'destinationHandler': 'files'
-                }
+        self.app.hooking.addOption('app.pa_exit', self.cleanupSSHFS)
+        os.mkdir("/tmp/copysync-sshfs-"+str(os.getpid()))
+        command = "sshfs "+self.username+"@"+self.hostname+":"+self.path+" /tmp/copysync-sshfs-"+str(os.getpid())+" -p "+str(self.port)+" -o auto_unmount"
+
+        if self.password:
+            command += ",password_stdin"
+
+        self.app.logging.output(command, 'sftp')
+
+        self.sshfs = pexpect.spawn(command)
+
+        if self.password:
+            self.sshfs.expect("")
+            time.sleep(1)
+            self.sshfs.sendline(self.password)
+
+        ## response
+        response = self.sshfs.readline()
+        self.app.logging.output('SSHfs output: ' +response.rstrip(), 'sftp')
+
+        if "read:" in response:
+            self.app.logging.output('Error connecting using SSHfs handler', 'sftp')
+            sys.exit(1)
+
+        self.status = {
+            'destinationAddress': "/tmp/copysync-sshfs-"+str(os.getpid()),
+            'destinationHandler': 'files'
+        }
+
 
 
     def cleanupSSHFS(self, opts = ''):
@@ -86,14 +121,37 @@ class Handler:
         os.system("fusermount -zu /tmp/copysync-sshfs-"+str(os.getpid()))
         os.system("rm /tmp/copysync-sshfs-"+str(os.getpid())+" -rf")
 
-    def reconnect(self):
+    def reconnect(self, useKey = False):
         """
         Make a reconnection using same connection parameters as previous
         :return: None
         """
 
-        self.connection = pysftp.Connection(self.hostname, username=self.username, password=self.password, port=self.port)
-        self.connection.timeout = self.app.config.getKey('connectionTimeout', 5)
+        privateKey = None
+        privateKeyPass = None
+
+        # use a key authentication instead of password
+        if useKey:
+            # use a private key specified from commandline
+            if self.app.sshKey:
+                privateKey = self.app.sshKey
+            else:
+                privateKey = os.path.expanduser('~/.ssh/id_dsa')
+
+            privateKeyPass = self.password
+            self.password = None
+            self.app.logging.output('Using private key from "' + privateKey + '"', 'sftp')
+
+
+        try:
+            self.connection = pysftp.Connection(self.hostname, username=self.username, password=self.password, port=self.port, private_key=privateKey, private_key_pass=privateKeyPass)
+            self.connection.timeout = self.app.config.getKey('connectionTimeout', 5)
+        except Exception as e:
+            if ("Bad authentication type" in e.message or "not a valid DSA private key file" in e.message) and not useKey:
+                self.app.logging.output('Got "Bad authentication type", trying with key authentication', 'sftp')
+                self.reconnect(useKey = True)
+            else:
+                raise e
 
     def __reconnectionProxy(self, method, *args):
         """

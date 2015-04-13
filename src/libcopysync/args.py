@@ -95,6 +95,27 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
 
         self.panthera.noCopy = True
 
+    def setSSHKey(self, value = ''):
+        """
+        Specify a SSH connection key
+        :param value: Input path
+
+        :return:
+        """
+
+        if os.path.isfile(self.panthera.sshKey):
+            self.panthera.sshKey = value
+
+    def setSSHfs(self, value = ''):
+        """
+        Force sftp handler to use sshfs tool instead of native Paramiko library
+        :param value:
+
+        :return:
+        """
+
+        self.panthera.sshForceFuse = True
+
     def addArgs(self):
         """ Add application command-line arguments """
     
@@ -104,3 +125,5 @@ class copySyncArguments (pantheradesktop.argsparsing.pantheraArgsParsing):
         self.createArgument('--filters', self.readFilters, '', '(Optional) Read regex filters from file', required=False, action='store')
         self.createArgument('--backup', self.setBackupPath, '', '(Optional) Backup directory path', required=False, action='store')
         self.createArgument('--no-copy', self.noCopy, '', '(Optional) Do not copy files, just execute command specified in a plugin or --execute when any files are modified', required=False, action='store_false')
+        self.createArgument('--ssh-key', self.setSSHKey, '', '(Optional) Specify a SSH authorization key, used by sftp connection handler, uses DSA algorithm (type ssh-keygen -t dsa to generate a key)', required=False, action='store')
+        self.createArgument('--force-sshfs', self.setSSHfs, '', '(Optional) Force using sshfs instead of native Paramiko library to connect via sftp', required=False, action='store_false')
